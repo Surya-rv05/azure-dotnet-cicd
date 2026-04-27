@@ -1,4 +1,3 @@
-# ── Trigger ───────────────────────────────────────────────────────────────────
 trigger:
   branches:
     include:
@@ -8,7 +7,6 @@ trigger:
       - README.md
       - .gitignore
 
-# ── Variables ─────────────────────────────────────────────────────────────────
 variables:
   acrName: 'acrdevopsdemo2025'
   acrLoginServer: 'acrdevopsdemo2025.azurecr.io'
@@ -19,10 +17,8 @@ variables:
   serviceConnection: 'azure-service-connection'
   keyVaultName: 'kv-dotnet-cicd-dev'
 
-# ── Stages ────────────────────────────────────────────────────────────────────
 stages:
 
-# ── Stage 1: Build & Test ─────────────────────────────────────────────────────
 - stage: Build
   displayName: 'Build and Test'
   jobs:
@@ -32,7 +28,6 @@ stages:
       vmImage: 'ubuntu-latest'
     steps:
 
-    # Fetch secrets from Key Vault
     - task: AzureKeyVault@2
       displayName: 'Fetch secrets from Key Vault'
       inputs:
@@ -41,7 +36,6 @@ stages:
         SecretsFilter: 'AcrUsername,AcrPassword,AppInsightsConnectionString'
         RunAsPreJob: false
 
-    # Run dotnet tests
     - task: DotNetCoreCLI@2
       displayName: 'Run Unit Tests'
       inputs:
@@ -49,17 +43,6 @@ stages:
         projects: '**/AzureDevOpsDemo.Tests/*.csproj'
         arguments: '--configuration Release --verbosity minimal'
 
-    # Login to ACR
-    - task: Docker@2
-      displayName: 'Login to ACR'
-      inputs:
-        command: 'login'
-        containerRegistry: '$(acrLoginServer)'
-      env:
-        DOCKER_USERNAME: $(AcrUsername)
-        DOCKER_PASSWORD: $(AcrPassword)
-
-    # Build and Push Docker image
     - task: AzureCLI@2
       displayName: 'Build and Push Docker Image to ACR'
       inputs:
@@ -67,28 +50,20 @@ stages:
         scriptType: 'bash'
         scriptLocation: 'inlineScript'
         inlineScript: |
-          # Login to ACR
           az acr login --name $(acrName)
-
-          # Build image
           docker build -t $(acrLoginServer)/$(imageName):$(imageTag) .
           docker build -t $(acrLoginServer)/$(imageName):latest .
-
-          # Push both tags
           docker push $(acrLoginServer)/$(imageName):$(imageTag)
           docker push $(acrLoginServer)/$(imageName):latest
+          echo "Image pushed: $(acrLoginServer)/$(imageName):$(imageTag)"
 
-          echo "✅ Image pushed: $(acrLoginServer)/$(imageName):$(imageTag)"
-
-    # Publish pipeline artifact
     - task: PublishPipelineArtifact@1
       displayName: 'Publish Pipeline Artifact'
       inputs:
-        targetPath: '$(Pipeline.Workspace)'
+        targetPath: '$(Build.ArtifactStagingDirectory)'
         artifact: 'drop'
         publishLocation: 'pipeline'
 
-# ── Stage 2: Deploy ───────────────────────────────────────────────────────────
 - stage: Deploy
   displayName: 'Deploy to Azure App Service'
   dependsOn: Build
@@ -104,7 +79,6 @@ stages:
         deploy:
           steps:
 
-          # Fetch secrets from Key Vault
           - task: AzureKeyVault@2
             displayName: 'Fetch secrets from Key Vault'
             inputs:
@@ -113,7 +87,6 @@ stages:
               SecretsFilter: 'AppInsightsConnectionString'
               RunAsPreJob: false
 
-          # Deploy to App Service
           - task: AzureWebAppContainer@1
             displayName: 'Deploy Container to App Service'
             inputs:
