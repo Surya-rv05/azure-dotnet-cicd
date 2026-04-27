@@ -47,7 +47,7 @@ stages:
       displayName: 'Build and Push Docker Image to ACR'
       inputs:
         azureSubscription: '$(serviceConnection)'
-        scriptType: 'bash'
+        scriptType: 'ps'
         scriptLocation: 'inlineScript'
         inlineScript: |
           az acr login --name $(acrName)
@@ -55,7 +55,7 @@ stages:
           docker build -t $(acrLoginServer)/$(imageName):latest .
           docker push $(acrLoginServer)/$(imageName):$(imageTag)
           docker push $(acrLoginServer)/$(imageName):latest
-          echo "Image pushed: $(acrLoginServer)/$(imageName):$(imageTag)"
+          Write-Host "Image pushed: $(acrLoginServer)/$(imageName):$(imageTag)"
 
     - task: PublishPipelineArtifact@1
       displayName: 'Publish Pipeline Artifact'
